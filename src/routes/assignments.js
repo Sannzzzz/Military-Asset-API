@@ -47,33 +47,38 @@ router.get('/', async (req, res) => {
 // Issue asset to personnel
 router.post('/', authorize('ADMIN', 'LOGISTICS_OFFICER'), async (req, res) => {
     try {
-        const { asset, personnel, quantity } = req.body;
+        const { assetId, personnelId, quantity } = req.body;
         const user = req.user;
+
+        // Validate required fields
+        if (!assetId || !personnelId || !quantity) {
+            return res.status(400).json({ error: 'assetId, personnelId, and quantity are required' });
+        }
 
         // Check personnel is in same base for non-admin
         if (user.role !== 'ADMIN') {
-            const p = await Personnel.findById(personnel.id);
+            const p = await Personnel.findById(personnelId);
             if (!p || p.base?.toString() !== user.baseId) {
                 return res.status(403).json({ error: 'Personnel is not in your base' });
             }
         }
 
         // Check asset quantity
-        const a = await Asset.findById(asset.id);
+        const a = await Asset.findById(assetId);
         if (!a || a.quantity < quantity) {
             return res.status(400).json({ error: 'Insufficient quantity' });
         }
 
         // Create assignment
         const assignment = await Assignment.create({
-            asset: asset.id,
-            personnel: personnel.id,
+            asset: assetId,
+            personnel: personnelId,
             quantity,
             issuedBy: user.id
         });
 
         // Decrease asset quantity
-        await Asset.findByIdAndUpdate(asset.id, { $inc: { quantity: -quantity } });
+        await Asset.findByIdAndUpdate(assetId, { $inc: { quantity: -quantity } });
 
         await AuditLog.create({
             action: 'ISSUE_ASSET',

@@ -42,19 +42,24 @@ router.get('/', async (req, res) => {
 // Create purchase (ADMIN only)
 router.post('/', authorize('ADMIN'), async (req, res) => {
     try {
-        const { asset, base, quantity } = req.body;
+        const { assetId, baseId, quantity } = req.body;
+
+        // Validate required fields
+        if (!assetId || !baseId || !quantity) {
+            return res.status(400).json({ error: 'assetId, baseId, and quantity are required' });
+        }
 
         const purchase = await Purchase.create({
-            asset: asset.id,
-            base: base.id,
+            asset: assetId,
+            base: baseId,
             quantity,
             createdBy: req.user.id
         });
 
         // Increase asset quantity
-        await Asset.findByIdAndUpdate(asset.id, { $inc: { quantity: quantity } });
+        await Asset.findByIdAndUpdate(assetId, { $inc: { quantity: quantity } });
 
-        const assetDoc = await Asset.findById(asset.id);
+        const assetDoc = await Asset.findById(assetId);
 
         await AuditLog.create({
             action: 'PURCHASE',
@@ -67,7 +72,7 @@ router.post('/', authorize('ADMIN'), async (req, res) => {
         res.status(201).json({ id: purchase._id });
     } catch (err) {
         console.error('Error:', err);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: err.message || 'Server error' });
     }
 });
 

@@ -78,11 +78,13 @@ router.get('/users', authMiddleware, authorize('ADMIN'), async (req, res) => {
         res.json(users.map(u => ({
             id: u._id,
             username: u.username,
-            full_name: u.fullName,
+            fullName: u.fullName,
+            full_name: u.fullName, // Legacy compatibility
             role: u.role,
-            base_id: u.base?._id,
-            base_name: u.base?.name,
-            created_at: u.createdAt
+            base: u.base ? { id: u.base._id, name: u.base.name } : null,
+            base_id: u.base?._id, // Legacy compatibility
+            base_name: u.base?.name, // Legacy compatibility
+            createdAt: u.createdAt
         })));
     } catch (err) {
         res.status(500).json({ error: 'Server error' });

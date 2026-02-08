@@ -44,16 +44,21 @@ router.get('/', async (req, res) => {
 // Create transfer request
 router.post('/', authorize('ADMIN', 'BASE_COMMANDER'), async (req, res) => {
     try {
-        const { asset, fromBase, toBase, quantity } = req.body;
+        const { assetId, fromBaseId, toBaseId, quantity } = req.body;
         const user = req.user;
 
+        // Validate required fields
+        if (!assetId || !fromBaseId || !toBaseId || !quantity) {
+            return res.status(400).json({ error: 'assetId, fromBaseId, toBaseId, and quantity are required' });
+        }
+
         // BASE_COMMANDER can only transfer FROM their base
-        if (user.role === 'BASE_COMMANDER' && fromBase.id !== user.baseId) {
+        if (user.role === 'BASE_COMMANDER' && fromBaseId !== user.baseId) {
             return res.status(403).json({ error: 'You can only transfer assets from your base' });
         }
 
         // Check source asset quantity
-        const sourceAsset = await Asset.findById(asset.id);
+        const sourceAsset = await Asset.findById(assetId);
         if (!sourceAsset || sourceAsset.quantity < quantity) {
             return res.status(400).json({ error: 'Insufficient quantity for transfer' });
         }
@@ -62,9 +67,9 @@ router.post('/', authorize('ADMIN', 'BASE_COMMANDER'), async (req, res) => {
         const status = user.role === 'ADMIN' ? 'APPROVED' : 'PENDING';
 
         const transfer = await Transfer.create({
-            asset: asset.id,
-            fromBase: fromBase.id,
-            toBase: toBase.id,
+            asset: assetId,
+            fromBase: fromBaseId,
+            toBase: toBaseId,
             quantity,
             status,
             requestedBy: user.id,
@@ -74,7 +79,7 @@ router.post('/', authorize('ADMIN', 'BASE_COMMANDER'), async (req, res) => {
 
         // If approved, execute the transfer
         if (status === 'APPROVED') {
-            await executeTransfer(asset.id, fromBase.id, toBase.id, quantity, sourceAsset);
+            await executeTransfer(assetId, fromBaseId, toBaseId, quantity, sourceAsset);
         }
 
         await AuditLog.create({

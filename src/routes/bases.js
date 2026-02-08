@@ -12,13 +12,23 @@ router.get('/', async (req, res) => {
         // ADMIN sees all bases
         if (user.role === 'ADMIN') {
             const bases = await Base.find().sort({ name: 1 });
-            return res.json(bases);
+            return res.json(bases.map(b => ({
+                id: b._id,
+                name: b.name,
+                location: b.location
+            })));
         }
 
         // Others see only their assigned base
         if (user.baseId) {
             const base = await Base.findById(user.baseId);
-            return res.json(base ? [base] : []);
+            if (base) {
+                return res.json([{
+                    id: base._id,
+                    name: base.name,
+                    location: base.location
+                }]);
+            }
         }
 
         res.json([]);
@@ -43,7 +53,7 @@ router.post('/', authorize('ADMIN'), async (req, res) => {
             user: req.user.id
         });
 
-        res.status(201).json(base);
+        res.status(201).json({ id: base._id, name, location });
     } catch (err) {
         console.error('Error:', err);
         res.status(500).json({ error: 'Server error' });
